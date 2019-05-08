@@ -156,6 +156,9 @@ GEM
     rb-inotify (0.10.0)
       ffi (~> 1.0)
     regexp_parser (1.4.0)
+    rubyXL (3.4.3)
+      nokogiri (>= 1.4.4)
+      rubyzip (>= 1.1.6)
     rubyzip (1.2.2)
     sass (3.7.4)
       sass-listen (~> 4.0.0)
@@ -212,7 +215,9 @@ DEPENDENCIES
   chromedriver-helper
   jbuilder (~> 2.5)
   mechanize
+  nokogiri
   rails (~> 5.2.2, >= 5.2.2.1)
+  rubyXL
   sass-rails (~> 5.0)
   selenium-webdriver
   sqlite3!
