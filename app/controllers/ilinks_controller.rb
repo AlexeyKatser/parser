@@ -6,7 +6,7 @@ class IlinksController < ApplicationController
 	end
 
 	def ilinks_params
-		params.require(:ilink).permit(:url, :stype)
+		params.require(:ilink).permit(:url, :stype, :body)
 	end
 
 

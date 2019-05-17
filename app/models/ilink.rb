@@ -8,8 +8,8 @@ class Ilink < ApplicationRecord
  	end
 
 	def set_done
-		@done = true
-		Self.save
+		self.done = true
+		self.save
 	end
 
 end

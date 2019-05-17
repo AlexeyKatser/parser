@@ -10,19 +10,39 @@ class Proxy < ApplicationRecord
 
 	def setUsed
 		#puts "#{self.id}, #{self.ip}, #{:ip}"
-		self.status = 1
+		self.used = 1
 		self.save!
 	end
 
-	def used
-		self.status
+	def setUnused
+		self.used = nil
+		self.save!
 	end
 
- 	def get_ip
+ 	def getIP
  		self.ip
  	end
 
- 	def get_port
+ 	def getPort
  		self.port
+ 	end
+
+ 	def setUnworking
+ 		self.status = 1
+ 		self.save!
+ 	end
+
+ 	def setWorking
+ 		self.status = nil
+ 		self.save!
+ 	end
+
+ 	def incDone
+ 		self.timeUsed = 0 if self.timeUsed == nil 
+ 		self.timeUsed = self.timeUsed + 1
+ 		self.used = nil
+ 		self.allTimeUsed = 0 if self.allTimeUsed == nil
+ 		self.allTimeUsed = self.allTimeUsed + 1
+ 		self.save!
  	end
 end

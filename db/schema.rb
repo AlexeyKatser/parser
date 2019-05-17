@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_05_07_105041) do
+ActiveRecord::Schema.define(version: 2019_05_16_075112) do
 
   create_table "ilinks", force: :cascade do |t|
     t.string "url"
@@ -18,6 +18,7 @@ ActiveRecord::Schema.define(version: 2019_05_07_105041) do
     t.boolean "done"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "body"
     t.index ["url"], name: "index_ilinks_on_url", unique: true
   end
 
@@ -29,6 +30,7 @@ ActiveRecord::Schema.define(version: 2019_05_07_105041) do
     t.integer "allTimeUsed"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "used"
   end
 
 end

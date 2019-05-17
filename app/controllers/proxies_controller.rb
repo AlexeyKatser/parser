@@ -15,11 +15,4 @@ class ProxiesController < ApplicationController
  		@proxy = Proxy.find(params[:id])
  	end
 
- 	def get_ip
- 		self.ip
- 	end
-
- 	def gep_port
- 		self.port
- 	end
 end
