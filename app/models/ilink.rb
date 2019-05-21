@@ -4,12 +4,12 @@ class Ilink < ApplicationRecord
 	validates :url, presence: true
 
  	def before_save 
- 		self.url.downcase!
+ 		#self.url.downcase!
  	end
 
-	def set_done
+	def setDone
 		self.done = true
-		self.save
+		self.save!
 	end
 
 end

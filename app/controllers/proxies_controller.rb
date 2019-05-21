@@ -8,7 +8,7 @@ class ProxiesController < ApplicationController
 	end
 
 	def proxy_params
-		params.require(:proxy).permit(:ip, :port, :status)
+		params.require(:proxy).permit(:ip, :port, :status, :timeUsed, :allTimeUsed)
 	end
 
 	def set_proxy

@@ -1,28 +1,39 @@
 
 module BaseLogicHelper
 	Site = 'https://mouser.com'
-	$tProxies = Proxy.where(status: nil, used: nil)
+	$maxLinkID = 0
+	#$tProxies = Proxy.where(status: nil, used: nil)
 
 	def loadProxies
-		$tProxies = Proxy.where(status: nil, used: nil)
+		$tProxies = Proxy.where(status: nil)
+		setLoadedProxiesUnused
 		return 'loaded!'
 	end
 
 	def getProxy
-		loadProxies if $tProxies.count == 0
-		$tProxies.each.with_index do |pr, i|
-			p i
-			return pr[i] if pr[i].used == false && pr[i].status == nil
+		loadProxies if $tProxies == nil
+		$tProxies.each do |pr|
+			return pr if pr.used == nil && pr.status == nil
 		end
 		return nil
+	end
+
+	def workingProxiesLeft
+		count = 0
+		$tProxies.each do |pr|
+			count += 1 if pr.status == nil
+		end
+		return count
 	end
 
 	def readXLProxies
 		workbook = RubyXL::Parser.parse 'proxy.xlsx'
 		worksheet = workbook.worksheets[0]
 		worksheet.each do |row|
-			row_cells = row.cells.map{ |cell| cell.value }
-			Proxy.create(ip: row_cells[0], port: row_cells[1]) if row_cells[0].size > 7
+			if row != nil
+				row_cells = row.cells.map{ |cell| cell.value }
+				Proxy.create(ip: row_cells[0], port: row_cells[1]) if row_cells[0].size > 7
+			end
 		end
 		return 1
 	end
@@ -34,9 +45,12 @@ module BaseLogicHelper
 	end
 
 	def saveProxies
-		Proxy.each do |pr|
-			pr.save!
-		end	
+		Proxy.transaction do
+				$tProxies.each do |pr|
+					pr.used = false
+					pr.save!
+			end	
+		end
 		return 'Proxies saved'
 	end
 
@@ -57,60 +71,81 @@ module BaseLogicHelper
 			a.set_proxy(proxy.getIP, proxy.getPort)
 			doc = a.get(link.url) 
 		rescue StandardError => e
-			proxy.status = 1  
-			#proxy = Proxy.where(status: nil).first
-			return -1 #if proxy == nil
-			#retry
-			#return e.message 
+			#proxy.setUnworking
+			proxy.status = 1
+			return -1
 		end
 
 		if (doc == nil || doc.body.length < 2000 || doc.title == nil)
-			proxy.setUnworking
+			#proxy.setUnworking
+			proxy.status = 1
 			p 'Proxy banned!'
 			return -1
 		end
 
 		all_links = doc.css('a')
-		puts all_links.count
-		return if all_links.count == 0
+		#puts all_links.count
+		return -1 if all_links.count == 0
 
-		all_links.each do |links|
-			if links['href'] != nil
-				if links['href'].match('/.+\/_\/N-.+/')	
-					href = links['href']
-					href = Site + href unless href.include?("https:")
-					Ilink.create(url: href, stype: 0) 
+		Ilink.transaction do
+			all_links.each do |ilink|
+				if ilink['href'] != nil
+					if ilink['href'].match('/.+\/_\/N-.+/')	
+						href = ilink['href']
+						href = Site + href unless href.include?("https:")
+						Ilink.create(url: href, stype: 0) 
+					end
 				end
 			end
 		end
 
-		parsItems doc
-		link.set_done
+		return -1 if parsItems(doc) == -1
+		link.with_lock do
+			link.setDone
+		end
 		proxy.timeUsed = 0 if proxy.timeUsed == nil
 		proxy.timeUsed = proxy.timeUsed + 1
-		proxy.used = false
+		proxy.used = nil
+		#	proxy.incDone
 		return 1
 	end	
 
 	def goPars
 		#puts 'https://ru.mouser.com/Electronic-Components/'
-		links = Ilink.where(done: nil, stype: 0)
+		links = Ilink.where('done is null and stype = 0 and id > ?', $maxLinkID).first(100)
+		if links.count == 0
+			return 'nothing to do here'
+		end
 		threads = []
 		repeat = false
+		noProxy = false
 		links.each do |l|
 			sleep 1
 			pr = getProxy
-			return 'Proxy ended!' if pr == nil
+			if pr == nil
+				break if workingProxiesLeft > 0					
+			end
+			pr.used = true
+
+			$maxLinkID = l.id if l.id > $maxLinkID
+
 			threads << Thread.new do
-				pr.used = true
 				repeat = true if pars1(l , pr) == -1
 			end
 		end
 		threads.each {|thr| thr.join }
-		p repeat
-		sleep 20
-		goPars if repeat
+
+		sleep 2
+		#p "repeat? #{repeat}"
+		#goPars if repeat && workingProxiesLeft > 0 
 	end
+
+	def start
+		setLoadedProxiesUnused
+		p goPars
+		#saveProxies
+	end
+
 
 	def parsItems doc
 		group = doc.css('.breadcrumb-arrows a')	
@@ -122,24 +157,46 @@ module BaseLogicHelper
 		return -1 if group.count == 0
 
 		table_rows = doc.css('tr[data-index]')
-		table_rows.each do |tr|
-			column = 2
-			item = []
-			tr.css('.column').each do |tc|
-				item[column] = tc.text.strip 
-				column += 1	
+		begin
+			Ilink.transaction do
+				table_rows.each do |tr|
+					column = 2
+					item = []
+					tr.css('.column').each do |tc|
+						item[column] = tc.text.strip 
+						column += 1	
+					end
+					item[0] = Site + tr.css('a#lnkMfrPartNumber')[0]['href']
+					item[1] = groups.join('>')
+					item[2] = Site + tr.css('.refine-prod-img')[0]['src'] unless tr.css('img')[0] == nil
+					Ilink.create(url: item[0], stype: 1, body: item.join('||'))
+				end		
 			end
-			item[0] = Site + tr.css('a#lnkMfrPartNumber')[0]['href']
-			item[1] = groups.join('>')
-			item[2] = Site + tr.css('.refine-prod-img')[0]['src'] unless tr.css('img')[0] == nil
-			Ilink.create(url: item[0], stype: 1, body: item.join('||'))
-		end		
+		rescue
+			p 'transaction error!'
+			return -1
+		end
 		return 1
 	end
 
-	def setProxyUnused
-		Proxy.where(used: 1).each do |p|
+	def setProxiesUnused
+		Proxy.where(used: 1, status: nil).each do |p|
 			p.setUnused
+		end
+	end
+
+	def setLoadedProxiesUnused
+		return if $tProxies == nil
+		$tProxies.each do |pr|
+			pr.used = nil
+		end
+	end
+
+	def setProxiesWorking
+		Proxy.transaction do
+			Proxy.all.each do |p|
+				p.setWorking
+			end
 		end
 	end
 
