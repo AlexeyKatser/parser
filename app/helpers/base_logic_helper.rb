@@ -123,7 +123,11 @@ module BaseLogicHelper
 			sleep 1
 			pr = getProxy
 			if pr == nil
-				break if workingProxiesLeft > 0					
+				if workingProxiesLeft > 0					
+					break
+				else
+					sleep 10
+				end
 			end
 			pr.used = true
 

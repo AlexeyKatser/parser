@@ -10,10 +10,8 @@ class Proxy < ApplicationRecord
 
 	def setUsed
 		#puts "#{self.id}, #{self.ip}, #{:ip}"
-		self.transaction do
-			self.used = 1
-			self.save!
-		end
+		self.used = 1
+		self.save!
 	end
 
 	def setUnused
